@@ -43,7 +43,7 @@ router.get('/version', (req, res) => {
   router.handle(req, res);
 });
 
-// --- Public: proxy download APK via presigned URL ---
+// --- Public: proxy download APK (stream from R2) ---
 router.get('/download/:releaseId', async (req, res) => {
   try {
     const release = await AppRelease.findById(req.params.releaseId).lean();
@@ -53,8 +53,12 @@ router.get('/download/:releaseId', async (req, res) => {
     if (!r2.configured()) {
       return res.status(503).json({ error: 'Download storage not configured.' });
     }
-    const url = await r2.getSignedUrl(release.apkKey, 3600);
-    res.redirect(302, url);
+    const { stream, contentType, contentLength } = await r2.streamFile(release.apkKey);
+    const fileName = `Housley-v${release.version}.apk`;
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', 'attachment; filename="' + fileName + '"');
+    if (contentLength) res.setHeader('Content-Length', contentLength);
+    stream.pipe(res);
   } catch (err) {
     console.error('Download proxy error:', err);
     res.status(500).json({ error: 'Download failed.' });

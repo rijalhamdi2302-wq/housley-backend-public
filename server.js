@@ -145,6 +145,71 @@ const appRoutes = require('./routes/app');
 
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'housley-backend' }));
 
+// --- Public download page (serves a nice HTML page for APK download) ---
+app.get('/download', async (req, res) => {
+  try {
+    const { AppRelease } = require('./models');
+    const release = await AppRelease.findOne({ isLatest: true }).sort({ createdAt: -1 }).lean();
+    const version = release ? release.version : '1.0.0';
+    const releaseId = release ? release._id : '';
+    const notes = release && release.releaseNotes ? release.releaseNotes : [];
+    const releasedAt = release ? new Date(release.createdAt).toLocaleDateString('en-MY', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+    const notesHtml = notes.length ? '<ul style="margin:12px 0;padding-left:20px;text-align:left">' + notes.map(n => '<li style="margin:6px 0;color:#555">' + n.replace(/</g,'&lt;') + '</li>').join('') + '</ul>' : '';
+
+    res.send(`<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Download Housley</title>
+<link rel="icon" type="image/png" href="/api/app/icon">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f7fa;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.card{background:#fff;border-radius:16px;padding:40px 32px;max-width:420px;width:90%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+.logo{width:80px;height:80px;border-radius:20px;margin:0 auto 20px;background:#1a1a2e;display:flex;align-items:center;justify-content:center}
+.logo img{width:56px;height:56px;border-radius:14px}
+h1{font-size:24px;color:#1a1a2e;margin-bottom:8px}
+.sub{color:#666;font-size:14px;margin-bottom:4px}
+.badge{display:inline-block;background:#e8f5e9;color:#2e7d32;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;margin:8px 0}
+.notes{text-align:left;margin:16px 0;padding:12px 16px;background:#f9fafb;border-radius:10px;font-size:13px;color:#555}
+.btn{display:block;background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff;padding:16px 24px;border-radius:12px;font-size:16px;font-weight:600;text-decoration:none;margin:20px 0;transition:transform .15s,box-shadow .15s;border:none;cursor:pointer;width:100%}
+.btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(26,26,46,.3)}
+.btn:active{transform:translateY(0)}
+.steps{text-align:left;margin-top:24px;font-size:13px;color:#666}
+.steps h3{font-size:14px;color:#333;margin-bottom:8px}
+.step{display:flex;gap:10px;margin:8px 0;align-items:flex-start}
+.step-num{background:#1a1a2e;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px}
+.step p{margin:0;color:#777;line-height:1.4}
+.footer{margin-top:20px;font-size:11px;color:#aaa}
+</style></head><body>
+<div class="card">
+  <div class="logo"><img src="https://housley-backend-wlh5.onrender.com/api/app/icon" alt="Housley"></div>
+  <h1>Download Housley</h1>
+  <p class="sub">Version ${version.replace(/</g,'&lt;')} &bull; Android 8.0+</p>
+  ${releasedAt ? '<p class="sub">Released ' + releasedAt + '</p>' : ''}
+  <div class="badge">Free Family Finance App</div>
+  ${notes.length ? '<div class="notes"><strong>What\'s New:</strong>' + notesHtml + '</div>' : ''}
+  <a class="btn" href="/api/app/download/${releaseId}">⬇️ Download APK (${version.replace(/</g,'&lt;')})</a>
+  <div class="steps">
+    <h3>How to install</h3>
+    <div class="step"><span class="step-num">1</span><div><p>Tap <strong>Download</strong> above. Your browser will download the file.</p></div></div>
+    <div class="step"><span class="step-num">2</span><div><p>Go to <strong>Settings → Security</strong> → Enable <strong>Install Unknown Apps</strong> for your browser.</p></div></div>
+    <div class="step"><span class="step-num">3</span><div><p>Tap the downloaded file → <strong>Install</strong> → Open Housley!</p></div></div>
+  </div>
+  <div class="footer">© 2026 Housley &bull; Built for families</div>
+</div>
+</body></html>`);
+  } catch {
+    res.status(500).send('Something went wrong. Please try again.');
+  }
+});
+
+// Serve icon for the download page
+app.get('/api/app/icon', (req, res) => {
+  const iconPath = path.join(__dirname, '..', 'frontend', 'public', 'icon.png');
+  res.sendFile(iconPath, (err) => {
+    if (err) res.status(404).end();
+  });
+});
+
 // App release — public (no auth)
 app.use('/api/app', appRoutes);
 

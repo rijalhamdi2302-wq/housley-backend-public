@@ -19,13 +19,18 @@ router.get('/latest', async (req, res) => {
   try {
     const release = await AppRelease.findOne({ isLatest: true }).sort({ createdAt: -1 }).lean();
     if (!release) return res.json({ version: '1.0.0', versionCode: 1, apkUrl: null, releaseNotes: [], isMandatory: false });
+    // Build a proxy download URL so users don't need R2 public access
+    const downloadUrl = release._id
+      ? `${req.protocol}://${req.get('host')}/api/app/download/${release._id}`
+      : release.apkUrl;
     res.json({
       version: release.version,
       versionCode: release.versionCode,
-      apkUrl: release.apkUrl,
+      apkUrl: downloadUrl,
       releaseNotes: release.releaseNotes,
       isMandatory: release.isMandatory,
       releasedAt: release.createdAt,
+      releaseId: release._id,
     });
   } catch (err) {
     res.json({ version: '1.0.0', versionCode: 1, apkUrl: null, releaseNotes: [], isMandatory: false });
@@ -36,6 +41,24 @@ router.get('/latest', async (req, res) => {
 router.get('/version', (req, res) => {
   req.url = '/latest';
   router.handle(req, res);
+});
+
+// --- Public: proxy download APK via presigned URL ---
+router.get('/download/:releaseId', async (req, res) => {
+  try {
+    const release = await AppRelease.findById(req.params.releaseId).lean();
+    if (!release || !release.apkKey) {
+      return res.status(404).json({ error: 'Release not found.' });
+    }
+    if (!r2.configured()) {
+      return res.status(503).json({ error: 'Download storage not configured.' });
+    }
+    const url = await r2.getSignedUrl(release.apkKey, 3600);
+    res.redirect(302, url);
+  } catch (err) {
+    console.error('Download proxy error:', err);
+    res.status(500).json({ error: 'Download failed.' });
+  }
 });
 
 module.exports = router;

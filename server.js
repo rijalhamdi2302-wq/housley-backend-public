@@ -333,6 +333,8 @@ app.use('/api/admin', routes.admin);
 // --- Sentry error handler (AFTER all routes) ──────────────────────────────────
 if (process.env.SENTRY_DSN) Sentry.setupExpressErrorHandler(app);
 
+// (Seed endpoint removed — demo accounts already created)
+
 // --- Errors -------------------------------------------------------------------
 app.use((req, res) => res.status(404).json({ error: 'Not found.' }));
 

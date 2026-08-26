@@ -254,9 +254,10 @@ router.post(
 
     const origin = req.get('origin') || req.get('referer') || '';
     const originMatch = origin.match(/https?:\/\/[^/]+/);
+    // v4 #34: Fixed redirect — use origin from request, then env, then fallback to correct port
     const returnUrl = (originMatch ? `${originMatch[0]}/pro` : '')
       || process.env.TOYYIBPAY_RETURN_URL
-      || 'http://localhost:5174/pro';
+      || 'http://localhost:5173/pro';
 
     let billCode, paymentUrl;
     try {

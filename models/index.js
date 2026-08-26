@@ -20,6 +20,8 @@ const money = {
 const familySchema = new mongoose.Schema(
   {
     name: { type: String, default: "My Family" },
+    // v4 #18: Account type — personal, spouse, or family
+    familyType: { type: String, enum: ['personal', 'spouse', 'family'], default: 'family' },
     periodType: { type: String, enum: ['monthly', 'weekly', 'annually'], default: 'monthly' },
     rolloverPolicy: { type: String, enum: ['carry_forward', 'reset'], default: 'carry_forward' },
     currency: { type: String, default: 'RM' },

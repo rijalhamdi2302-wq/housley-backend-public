@@ -96,6 +96,7 @@ async function buildSession(user) {
     family: {
       _id: family._id,
       name: family.name,
+      familyType: family.familyType || 'family',
       periodType: family.periodType,
       rolloverPolicy: family.rolloverPolicy,
       currency: family.currency,
@@ -271,9 +272,12 @@ router.post(
     await verification.save();
 
     const { Family } = require('../models');
+    // v4 #18: Accept familyType from request body
+    const familyType = ['personal', 'spouse', 'family'].includes((req.body || {}).familyType) ? (req.body).familyType : 'family';
     // New families start on the Free plan — no trial. Pro must be purchased.
     const family = await Family.create({
       name: familyName.slice(0, 60),
+      familyType,
       periodType: 'monthly',
       rolloverPolicy: 'carry_forward',
       currency: 'RM',

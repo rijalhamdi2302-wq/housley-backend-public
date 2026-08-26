@@ -5,6 +5,7 @@
  */
 
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { ah, getFamily } = require('./helpers');
@@ -566,6 +567,28 @@ router.get('/analytics/budget-alerts', requireAuth, ah(async (req, res) => {
   }
 
   res.json({ alerts });
+}));
+
+// ─── Report Issues (v4 #31) ─────────────────────────────────────────────
+const reportSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  familyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Family', required: true },
+  category: { type: String, enum: ['bug', 'feature', 'other'], default: 'bug' },
+  message: { type: String, required: true, maxlength: 2000 },
+  status: { type: String, enum: ['new', 'read', 'resolved'], default: 'new' },
+}, { timestamps: true });
+const ReportIssue = mongoose.model('ReportIssue', reportSchema);
+
+router.post('/report-issue', requireAuth, ah(async (req, res) => {
+  const { category, message } = req.body || {};
+  if (!message || !message.trim()) return res.status(400).json({ error: 'Please describe the issue.' });
+  const report = await ReportIssue.create({
+    userId: req.user._id,
+    familyId: req.user.familyId,
+    category: category || 'bug',
+    message: message.trim().slice(0, 2000),
+  });
+  res.json({ ok: true, id: report._id });
 }));
 
 module.exports = router;

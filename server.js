@@ -238,6 +238,46 @@ async function requireAdminAuth(req, res, next) {
 
 app.use('/api/admin/releases', requireAdminAuth, upload.single('apk'), adminReleases);
 
+// ─── Admin Report Issues ──────────────────────────────────────
+const { ReportIssue } = (() => {
+  try {
+    const mongoose = require('mongoose');
+    const schema = new mongoose.Schema({
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      familyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Family' },
+      category: { type: String, enum: ['bug', 'feature', 'other'], default: 'bug' },
+      message: { type: String, required: true },
+      status: { type: String, enum: ['new', 'read', 'resolved'], default: 'new' },
+    }, { timestamps: true });
+    return { ReportIssue: mongoose.model('ReportIssue', schema) };
+  } catch { return { ReportIssue: null }; }
+})();
+
+app.get('/api/admin/reports', requireAdminAuth, async (req, res) => {
+  if (!ReportIssue) return res.json({ reports: [] });
+  try {
+    const reports = await ReportIssue.find().sort({ createdAt: -1 }).limit(100).lean();
+    res.json({ reports });
+  } catch { res.json({ reports: [] }); }
+});
+
+app.patch('/api/admin/reports/:id', requireAdminAuth, async (req, res) => {
+  if (!ReportIssue) return res.status(404).json({ error: 'Not found' });
+  try {
+    const { status } = req.body || {};
+    const report = await ReportIssue.findByIdAndUpdate(req.params.id, { status }, { new: true });
+    res.json({ ok: true, report });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/admin/reports/:id', requireAdminAuth, async (req, res) => {
+  if (!ReportIssue) return res.status(404).json({ error: 'Not found' });
+  try {
+    await ReportIssue.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Active announcements — any authenticated user can fetch
 app.get('/api/announcements/active', async (req, res) => {
   try {

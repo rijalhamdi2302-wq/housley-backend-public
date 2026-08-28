@@ -327,6 +327,7 @@ app.use('/api/social', routes.social);
 app.use('/api/family', routes.family);
 app.use('/api/ai', routes.ai);
 app.use('/api/pro', routes.pro);
+app.use('/api/score', require('./routes/score'));
 app.use('/api', routes.features);
 app.use('/api/admin', routes.admin);
 

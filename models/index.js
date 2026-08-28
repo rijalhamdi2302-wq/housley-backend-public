@@ -32,7 +32,7 @@ const familySchema = new mongoose.Schema(
     inviteCodeExpiresAt: { type: Date, default: null },
     inviteUsesLeft: { type: Number, default: 0, min: 0 },
     // Public version — Pro subscription (one purchase = whole family)
-    proTier: { type: String, enum: ['none', 'monthly', 'yearly', 'lifetime'], default: 'none' },
+    proTier: { type: String, default: 'none' },  // stores plan IDs like spark_monthly, pro_yearly, vault_lifetime, lifetime, none
     proExpiresAt: { type: Date, default: null },
     proPurchasedAt: { type: Date, default: null },
     trialEndsAt: { type: Date, default: null }, // 7-day free Pro trial from sign-up

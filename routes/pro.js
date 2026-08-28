@@ -249,15 +249,19 @@ router.post(
       status: 'pending',
       raw: promoInfo ? { promoCode: promoInfo.code, discount: promoInfo.discount } : {},
     });
+    // Callback URL — ToyyibPay calls this server-to-server after payment.
+    // Must be the backend's public URL (Render), not the frontend.
     const callbackUrl =
       process.env.TOYYIBPAY_CALLBACK_URL || `https://${req.get('host')}/api/pro/webhook`;
 
-    const origin = req.get('origin') || req.get('referer') || '';
-    const originMatch = origin.match(/https?:\/\/[^/]+/);
-    // v4 #34: Fixed redirect — use origin from request, then env, then fallback to correct port
-    const returnUrl = (originMatch ? `${originMatch[0]}/pro` : '')
-      || process.env.TOYYIBPAY_RETURN_URL
-      || 'http://localhost:5173/pro';
+    // Return URL — where ToyyibPay redirects the user's browser after payment.
+    // Must be the FRONTEND app URL (not backend). Include billCode so the
+    // frontend can immediately poll bill status without relying on state.
+    const frontendBase = process.env.TOYYIBPAY_RETURN_URL
+      || process.env.APP_URL
+      || process.env.FRONTEND_URL
+      || 'http://localhost:5173';
+    const returnUrl = `${frontendBase.replace(/\/+$/, '')}/pro?billcode=${encodeURIComponent(billCode || orderId)}`;
 
     let billCode, paymentUrl;
     try {
@@ -424,6 +428,33 @@ router.post(
     await family.save();
     await ProOrder.updateMany({ familyId: family._id, status: 'pending' }, { status: 'failed' });
     res.json({ ok: true, status: pro.proStatus(family) });
+  })
+);
+
+/** POST /api/pro/cleanup-failed — clean up promo usage when payment fails.
+ * Deletes PromoCodeUsage and decrements the promo's usage counter so the family can reuse it.
+ */
+router.post(
+  '/cleanup-failed',
+  requireAuth,
+  ah(async (req, res) => {
+    const { billCode } = req.body || {};
+    if (!billCode) return res.status(400).json({ error: 'billCode required.' });
+    const { PromoCodeUsage, PromoCode } = require('../models');
+    const order = await ProOrder.findOne({ billCode, familyId: req.user.familyId });
+    if (!order) return res.json({ ok: true });
+    // If this order had a promo code, undo the usage
+    const code = order.raw?.promoCode;
+    if (code) {
+      await PromoCodeUsage.deleteOne({ familyId: req.user.familyId, code });
+      await PromoCode.findOneAndUpdate({ code }, { $inc: { currentUses: -1 } }).catch(() => {});
+    }
+    // Mark order as failed so it can't be re-polled
+    if (order.status !== 'failed') {
+      order.status = 'failed';
+      await order.save();
+    }
+    res.json({ ok: true });
   })
 );
 

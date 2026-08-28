@@ -336,7 +336,8 @@ router.patch('/families/:id', requireAdmin, ah(async (req, res) => {
   if (!family) return res.status(404).json({ error: 'Family not found.' });
 
   if (name) family.name = String(name).trim().slice(0, 60);
-  if (proTier && ['none', 'monthly', 'yearly', 'lifetime'].includes(proTier)) family.proTier = proTier;
+  const VALID_TIERS = ['none', 'monthly', 'yearly', 'lifetime', 'spark', 'pro', 'vault', 'trial', 'lifetime', 'spark_monthly', 'spark_quarterly', 'spark_semiannual', 'spark_yearly', 'spark_lifetime', 'pro_monthly', 'pro_quarterly', 'pro_semiannual', 'pro_yearly', 'pro_lifetime', 'vault_monthly', 'vault_quarterly', 'vault_semiannual', 'vault_yearly', 'vault_lifetime'];
+  if (proTier && VALID_TIERS.includes(proTier)) family.proTier = proTier;
   if (proExpiresAt !== undefined) family.proExpiresAt = proExpiresAt ? new Date(proExpiresAt) : null;
   if (aiEnabled !== undefined) family.aiEnabled = Boolean(aiEnabled);
 

@@ -501,7 +501,10 @@ router.post(
   })
 );
 
-/** POST /api/auth/refresh — exchange a refresh token for a fresh JWT (biometric unlock). */
+/** POST /api/auth/refresh — exchange a refresh token for a fresh JWT.
+ * v6 Task E: Works for all users, not just biometric-enabled ones.
+ * Enables persistent login — app remembers the user across restarts.
+ */
 router.post(
   '/refresh',
   pinLimiter,
@@ -512,14 +515,10 @@ router.post(
     }
     const user = await User.findById(userId).select('+pinHash +refreshTokenHash');
     if (!user || !user.refreshTokenHash) {
-      return res.status(401).json({ error: 'Session not found. Please log in with your PIN.' });
-    }
-    // Only profiles that explicitly enabled biometric unlock may use this path.
-    if (!user.biometricEnabled) {
-      return res.status(403).json({ error: 'Biometric unlock is not enabled for this profile.' });
+      return res.status(401).json({ error: 'Session not found. Please log in.' });
     }
     if (user.refreshTokenHash !== sha256(refreshToken)) {
-      return res.status(401).json({ error: 'Session is invalid. Please log in with your PIN.' });
+      return res.status(401).json({ error: 'Session is invalid. Please log in.' });
     }
     const session = await buildSession(user);
     res.json(session);
